@@ -7,23 +7,28 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<h1 class="welcome-message">Welcome to Weather App!</h1>
 <div class="card">
     <div class="search">
-        <input type = "text" placeholder = "Enter the city name" spellcheck="false">
+        <input type="text" placeholder="Enter the city name" spellcheck="false">
         <button><img src="images/search.png"></button>
     </div>
     <div class="error">
-        <p>Inavalid city name</p>
+        <p>Invalid city name</p>
+    </div>
+    <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Fetching weather data...</p>
     </div>
     <div class="weather">
-        <img src="images/rain.png" class="weather-icon" >
+        <img src="images/rain.png" class="weather-icon">
         <h1 class="temp">22°c</h1>
         <h2 class="city">Colombo</h2>
         <div class="details">
             <div class="col">
                 <img src="images/humidity.png">
                 <div>
-                    <p class ="humidity">50%</p>
+                    <p class="humidity">50%</p>
                     <p>Humidity</p>
                 </div>
             </div>
@@ -31,67 +36,197 @@
             <div class="col">
                 <img src="images/wind.png">
                 <div>
-                    <p class ="wind">15 km/h</p>
+                    <p class="wind">15 km/h</p>
                     <p>Wind Speed</p>
                 </div>
             </div>
         </div>
+        <div class="additional-info">
+            <div class="info-item">
+                <h3>Feels Like</h3>
+                <p class="feels-like">24°c</p>
+            </div>
+            <div class="info-item">
+                <h3>Pressure</h3>
+                <p class="pressure">1015 hPa</p>
+            </div>
+            <div class="info-item">
+                <h3>Visibility</h3>
+                <p class="visibility">10 km</p>
+            </div>
+            <div class="info-item">
+                <h3>Description</h3>
+                <p class="description">Clear Sky</p>
+            </div>
+        </div>
+        <p class="last-updated"></p>
     </div>
 </div>
 
+<div class="forecast-card">
+    <h2 class="forecast-title">5-Day Forecast</h2>
+    <div class="forecast-list">
+        
+    </div>
+</div>
 
 <script>
-
+// API configuration    
 const apiKey = "b96c0ff17ee755e56762a19a8bebc7b0";
 const apiUrl = "https://api.openweathermap.org/data/2.5/weather?units=metric&q=";
+const forecastUrl = "https://api.openweathermap.org/data/2.5/forecast?units=metric&q=";
 
+// DOM element references
 const searchBox = document.querySelector('.search input');
 const searchButton = document.querySelector('.search button');
 const weatherIcon = document.querySelector('.weather-icon');
+const forecastList = document.querySelector('.forecast-list');
+const loadingDiv = document.querySelector('.loading');
+const errorDiv = document.querySelector('.error');
+const weatherDiv = document.querySelector('.weather');
+const lastUpdatedP = document.querySelector('.last-updated');
 
-async function checkWeather(city) {
-    const response = await fetch(`${apiUrl}${city}&appid=${apiKey}`);
-    const data = await response.json();
-
-    if (data.cod !== 200) {
-        document.querySelector('.error').style.display = "block";
-        document.querySelector('.weather').style.display = "none";
-        return;
+function getWeatherIcon(condition) {
+    if(condition == 'Clouds') {
+        return 'images/clouds.png';
+    } else if(condition == 'Rain') {
+        return 'images/rain.png';
+    } else if(condition == 'Clear') {
+        return 'images/clear.png';
+    } else if(condition == 'Drizzle') {
+        return 'images/drizzle.png';
+    } else if(condition == 'Mist') {
+        return 'images/mist.png';
+    } else if(condition == 'Snow') {
+        return 'images/snow.png';
+    } else if(condition == 'Wind') {
+        return 'images/wind.png';
     }
-
-    console.log(data); //Remove later
-
-    document.querySelector('.city').innerText = data.name;
-    document.querySelector('.temp').innerText = Math.round(data.main.temp) + '°c';
-    document.querySelector('.humidity').innerText = data.main.humidity + '%';
-    document.querySelector('.wind').innerText = data.wind.speed + 'km/h';
-
-    if(data.weather[0].main == 'Clouds') {
-        document.querySelector('.weather-icon').src = 'images/clouds.png';
-    } else if(data.weather[0].main == 'Rain') {
-        document.querySelector('.weather-icon').src = 'images/rain.png';
-    } else if(data.weather[0].main == 'Clear') {
-        document.querySelector('.weather-icon').src = 'images/clear.png';
-    } else if(data.weather[0].main == 'Drizzle') {
-        document.querySelector('.weather-icon').src = 'images/drizzle.png';
-    } else if(data.weather[0].main == 'Mist') {
-        document.querySelector('.weather-icon').src = 'images/mist.png';
-    } else if(data.weather[0].main == 'Snow') {
-        document.querySelector('.weather-icon').src = 'images/snow.png';
-    } else if(data.weather[0].main == 'Wind') {
-        document.querySelector('.weather-icon').src = 'images/wind.png';
-    }
-
-    document.querySelector('.weather').style.display = "block";
-    document.querySelector('.error').style.display = "none";
-
+    return 'images/clear.png'; 
 }
 
+// Shows loading spinner and hides other content
+function showLoading() {
+    loadingDiv.style.display = 'block';
+    errorDiv.style.display = 'none';
+    weatherDiv.style.display = 'none';
+    searchButton.disabled = true;
+}
+
+function hideLoading() {
+    loadingDiv.style.display = 'none';
+    searchButton.disabled = false;
+}
+
+function showError(message) {
+    errorDiv.querySelector('p').textContent = message;
+    errorDiv.style.display = 'block';
+    weatherDiv.style.display = 'none';
+}
+
+function updateLastUpdated() {
+    const now = new Date();
+    lastUpdatedP.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+}
+
+async function checkWeather(city) {
+    try {
+        showLoading();
+
+        // Current weather
+        const response = await fetch(`${apiUrl}${city}&appid=${apiKey}`);
+        const data = await response.json();
+
+        if (data.cod !== 200) {
+            showError(data.message || 'Invalid city name');
+            return;
+        }
+
+        document.querySelector('.city').innerText = data.name;
+        document.querySelector('.temp').innerText = Math.round(data.main.temp) + '°c';
+        document.querySelector('.humidity').innerText = data.main.humidity + '%';
+        document.querySelector('.wind').innerText = data.wind.speed + 'km/h';
+        
+      
+        document.querySelector('.feels-like').innerText = Math.round(data.main.feels_like) + '°c';
+        document.querySelector('.pressure').innerText = data.main.pressure + ' hPa';
+        document.querySelector('.visibility').innerText = (data.visibility / 1000) + ' km';
+        document.querySelector('.description').innerText = data.weather[0].description;
+
+        weatherIcon.src = getWeatherIcon(data.weather[0].main);
+
+        // Fetch forecast data
+        const forecastResponse = await fetch(`${forecastUrl}${city}&appid=${apiKey}`);
+        const forecastData = await forecastResponse.json();
+
+        // Clear previous forecast
+        forecastList.innerHTML = '';
+
+        // Get one forecast per day (every 8th item as the API returns data every 3 hours)
+        const dailyForecasts = forecastData.list.filter((item, index) => index % 8 === 0);
+
+        // Add forecast items
+        dailyForecasts.forEach(forecast => {
+            const date = new Date(forecast.dt * 1000);
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+            const temp = Math.round(forecast.main.temp);
+            const condition = forecast.weather[0].main;
+            const description = forecast.weather[0].description;
+            
+            const forecastItem = document.createElement('div');
+            forecastItem.className = 'forecast-item';
+            forecastItem.innerHTML = `
+                <span class="forecast-date">${dayName}</span>
+                <div class="forecast-info">
+                    <img src="${getWeatherIcon(condition)}" class="forecast-icon" alt="${description}">
+                    <div>
+                        <div class="forecast-temp">${temp}°c</div>
+                        <div class="forecast-condition">${description}</div>
+                    </div>
+                </div>
+            `;
+            forecastList.appendChild(forecastItem);
+        });
+
+        weatherDiv.style.display = 'block';
+        errorDiv.style.display = 'none';
+        updateLastUpdated();
+
+    } catch (error) {
+        console.error('Error fetching weather data:', error);
+        showError('Network error. Please try again later.');
+    } finally {
+        hideLoading();
+    }
+}
 
 searchButton.addEventListener('click', ()=> {
-    checkWeather(searchBox.value);
-})
+    if (searchBox.value.trim()) {
+        checkWeather(searchBox.value);
+    }
+});
 
+// Also trigger search on Enter key
+searchBox.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && searchBox.value.trim()) {
+        checkWeather(searchBox.value);
+    }
+});
+
+// Add hover effect to forecast items
+forecastList.addEventListener('mouseover', (e) => {
+    const forecastItem = e.target.closest('.forecast-item');
+    if (forecastItem) {
+        forecastItem.style.transform = 'scale(1.02)';
+    }
+});
+
+forecastList.addEventListener('mouseout', (e) => {
+    const forecastItem = e.target.closest('.forecast-item');
+    if (forecastItem) {
+        forecastItem.style.transform = 'scale(1)';
+    }
+});
 </script>
 
 </body>
