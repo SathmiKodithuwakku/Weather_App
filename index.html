@@ -10,7 +10,10 @@
 <div class="card">
     <div class="search">
         <input type = "text" placeholder = "Enter the city name" spellcheck="false">
-        <button><img src="images/search.png" alt=""></button>
+        <button><img src="images/search.png"></button>
+    </div>
+    <div class="error">
+        <p>Inavalid city name</p>
     </div>
     <div class="weather">
         <img src="images/rain.png" class="weather-icon" >
@@ -44,17 +47,48 @@ const apiUrl = "https://api.openweathermap.org/data/2.5/weather?units=metric&q="
 
 const searchBox = document.querySelector('.search input');
 const searchButton = document.querySelector('.search button');
+const weatherIcon = document.querySelector('.weather-icon');
 
 async function checkWeather(city) {
     const response = await fetch(apiUrl + city + '&appid=${apiKey}');
-    var data = await response.json();
 
-    console.log(data);
+    if(response.status == 404) {
+        document.querySelector('.error').style.display = "block";
+        document.querySelector('.weather').style.display = "none";
+        return;
+    }else {
+        var data = await response.json();
+
+    console.log(data); //Remove later
 
     document.querySelector('.city').innerText = data.name;
     document.querySelector('.temp').innerText = Math.round(data.main.temp) + '°c';
     document.querySelector('.humidity').innerText = data.main.humidity + '%';
     document.querySelector('.wind').innerText = data.wind.speed + 'km/h';
+
+    if(data.weather[0].main == 'Clouds') {
+        document.querySelector('.weather-icon').src = 'images/cloudy.png';
+    } else if(data.weather[0].main == 'Rain') {
+        document.querySelector('.weather-icon').src = 'images/rain.png';
+    } else if(data.weather[0].main == 'Clear') {
+        document.querySelector('.weather-icon').src = 'images/sunny.png';
+    } else if(data.weather[0].main == 'Mist') {
+        document.querySelector('.weather-icon').src = 'images/mist.png';
+    } else if(data.weather[0].main == 'Haze') {
+        document.querySelector('.weather-icon').src = 'images/haze.png';
+    } else if(data.weather[0].main == 'Fog') {
+        document.querySelector('.weather-icon').src = 'images/fog.png';
+    } else if(data.weather[0].main == 'Snow') {
+        document.querySelector('.weather-icon').src = 'images/snow.png';
+    } else if(data.weather[0].main == 'Thunderstorm') {
+        document.querySelector('.weather-icon').src = 'images/thunderstorm.png';
+    }
+
+    document.querySelector('.weather').style.display = "block";
+    document.querySelector('.error').style.display = "none";
+    }
+
+    
 }
 
 searchButton.addEventListener('click', ()=> {
